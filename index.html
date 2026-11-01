@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0e1116">
+<title>Радионяня</title>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+  :root{
+    --bg:#0e1116; --card:#171b22; --line:#262c36; --text:#e8ecf2; --muted:#8b95a5;
+    --accent:#7aa2ff; --ok:#4cc38a; --warn:#f0b44c; --bad:#ff5d5d;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  .wrap{max-width:720px;margin:0 auto;padding:20px 16px 40px}
+  h1{font-size:26px;margin:8px 0 4px}
+  h2{font-size:18px;margin:0 0 12px}
+  p{margin:6px 0}
+  .muted{color:var(--muted)}
+  .small{font-size:13px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin:14px 0}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .grow{flex:1}
+  button{font:inherit;border:0;border-radius:12px;padding:14px 18px;background:var(--line);color:var(--text);
+    cursor:pointer;min-height:48px}
+  button.primary{background:var(--accent);color:#0b1020;font-weight:600}
+  button.danger{background:var(--bad);color:#fff;font-weight:600}
+  button:disabled{opacity:.5}
+  .big-choice{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .big-choice button{padding:26px 12px;font-size:18px;display:flex;flex-direction:column;gap:6px;align-items:center}
+  .big-choice .ico{font-size:40px}
+  input[type=text]{font:inherit;font-size:28px;letter-spacing:6px;text-transform:uppercase;text-align:center;
+    width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:#0b0e13;color:var(--text)}
+  input[type=range]{width:100%}
+  label.sw{display:flex;align-items:center;gap:10px;padding:6px 0}
+  label.sw input{width:22px;height:22px}
+  .code{font-size:46px;font-weight:700;letter-spacing:8px;text-align:center;margin:6px 0;font-variant-numeric:tabular-nums}
+  .status{display:inline-flex;align-items:center;gap:8px;font-size:14px;padding:6px 12px;border-radius:999px;background:#0b0e13;border:1px solid var(--line)}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--muted)}
+  .dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.bad{background:var(--bad)}
+  .meter{height:18px;border-radius:9px;background:#0b0e13;border:1px solid var(--line);overflow:hidden;position:relative}
+  .meter>i{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--ok),var(--warn),var(--bad));transition:width .2s}
+  .meter>b{position:absolute;top:-3px;bottom:-3px;width:2px;background:#fff;opacity:.8}
+  video{width:100%;border-radius:12px;background:#000;display:block;max-height:60vh;object-fit:contain}
+  canvas{width:100%;height:70px;display:block}
+  .hidden{display:none!important}
+  #night{position:fixed;inset:0;background:#000;z-index:50;display:flex;align-items:flex-end;justify-content:center;padding-bottom:30px}
+  #night div{color:#2a2f38;font-size:14px;text-align:center}
+  #alarm{position:fixed;inset:0;z-index:60;background:rgba(255,40,40,.92);display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:18px;animation:flash 1s infinite;text-align:center;padding:20px}
+  #alarm h2{font-size:34px;margin:0;color:#fff}
+  #alarm p{color:#fff;font-size:18px}
+  #alarm button{background:#fff;color:#b00;font-weight:700;font-size:20px;padding:18px 40px}
+  @keyframes flash{50%{background:rgba(160,0,0,.95)}}
+  .err{color:var(--bad)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ===== Выбор режима ===== -->
+<section id="home">
+  <h1>Радионяня</h1>
+  <p class="muted">Откройте эту страницу на двух устройствах и выберите роль каждому.</p>
+  <div class="card big-choice">
+    <button id="pickBaby"><span class="ico">👶</span>Детская<span class="small muted">iPad рядом с ребёнком</span></button>
+    <button id="pickParent"><span class="ico">📱</span>Родитель<span class="small muted">ваш телефон</span></button>
+  </div>
+  <div class="card small muted">
+    <p><b>Перед сном на iPad:</b> Настройки → Экран и яркость → Автоблокировка → «Никогда». Поставьте на зарядку.
+    Чтобы случайно не закрыть страницу — тройное нажатие кнопки сбоку (Гид-доступ, включается в Настройки → Универсальный доступ).</p>
+    <p>Это вспомогательный инструмент, а не сертифицированное устройство — не полагайтесь только на него.</p>
+  </div>
+</section>
+
+<!-- ===== Детская ===== -->
+<section id="baby" class="hidden">
+  <h1>👶 Детская</h1>
+  <div id="babySetup" class="card">
+    <label class="sw"><input type="checkbox" id="optVideo" checked> Передавать видео</label>
+    <label class="sw"><input type="checkbox" id="optBack"> Задняя камера</label>
+    <p class="small muted">Без видео iPad меньше греется и дольше живёт. Звук и оповещения работают в обоих режимах.</p>
+    <button class="primary" id="babyStart" style="width:100%;margin-top:8px">Запустить</button>
+    <p id="babyErr" class="err small"></p>
+  </div>
+  <div id="babyRun" class="hidden">
+    <div class="card" style="text-align:center">
+      <p class="muted small">Код для телефона родителя</p>
+      <div class="code" id="babyCode">——</div>
+      <div class="row" style="justify-content:center">
+        <span class="status"><span class="dot" id="babyDot"></span><span id="babyStatus">Подключение…</span></span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row"><span class="grow">Уровень звука</span><span class="muted small" id="babyLvlTxt">0</span></div>
+      <div class="meter"><i id="babyLvl"></i></div>
+      <video id="babyPreview" class="hidden" playsinline muted autoplay style="margin-top:12px"></video>
+    </div>
+    <div class="row">
+      <button class="primary grow" id="nightBtn">🌙 Ночной режим (тёмный экран)</button>
+      <button id="flipBtn" class="hidden">🔄 Камера</button>
+      <button id="babyStop">Стоп</button>
+    </div>
+    <p class="small muted" style="margin-top:12px">Не сворачивайте Safari и не блокируйте экран — иначе iPad остановит камеру и микрофон.</p>
+  </div>
+</section>
+
+<!-- ===== Родитель ===== -->
+<section id="parent" class="hidden">
+  <h1>📱 Родитель</h1>
+  <div id="parentSetup" class="card">
+    <p class="muted">Введите код с экрана iPad</p>
+    <input type="text" id="codeIn" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="КОД">
+    <button class="primary" id="parentStart" style="width:100%;margin-top:12px">Подключиться</button>
+    <p id="parentErr" class="err small"></p>
+  </div>
+  <div id="parentRun" class="hidden">
+    <div class="row" style="margin:10px 0">
+      <span class="status"><span class="dot" id="parDot"></span><span id="parStatus">Подключение…</span></span>
+      <span class="grow"></span><span class="muted small" id="parCodeLbl"></span>
+    </div>
+    <div class="card" id="vidCard">
+      <video id="remote" playsinline autoplay></video>
+      <p id="audioOnly" class="muted hidden" style="text-align:center;padding:30px 0">Только звук 🎧</p>
+      <button id="unmuteBtn" class="primary hidden" style="width:100%;margin-top:10px">🔊 Нажмите, чтобы включить звук</button>
+    </div>
+    <div class="card">
+      <div class="row"><span class="grow">Звук в детской</span><span class="muted small" id="parLvlTxt">0</span></div>
+      <div class="meter"><i id="parLvl"></i><b id="parThrMark"></b></div>
+      <canvas id="hist" width="600" height="70" style="margin-top:10px"></canvas>
+      <p class="small muted">Последние 2 минуты. Белая черта — порог тревоги.</p>
+    </div>
+    <div class="card">
+      <h2>Оповещение</h2>
+      <div class="row"><span class="grow">Порог громкости</span><span id="thrTxt" class="muted">45</span></div>
+      <input type="range" id="thr" min="10" max="90" value="45">
+      <div class="row"><span class="grow">Сколько секунд шума до тревоги</span><span id="durTxt" class="muted">3 с</span></div>
+      <input type="range" id="dur" min="1" max="15" value="3">
+      <label class="sw"><input type="checkbox" id="listen" checked> Постоянно слушать звук из детской</label>
+      <button id="testAlarm" style="margin-top:6px">Проверить сигнал</button>
+    </div>
+    <div class="row">
+      <button id="parentStop">Отключиться</button>
+    </div>
+    <p class="small muted" style="margin-top:12px">Держите экран телефона включённым и страницу открытой — заблокированный браузер может не успеть подать сигнал.</p>
+  </div>
+</section>
+</div>
+
+<div id="night" class="hidden"><div>Радионяня работает · <span id="nightLvl">0</span><br>коснитесь, чтобы выйти</div></div>
+<div id="alarm" class="hidden">
+  <h2 id="alarmTitle">Ребёнок шумит!</h2>
+  <p id="alarmText">Звук в детской выше порога</p>
+  <button id="ackBtn">Понятно</button>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const PREFIX = 'rnyanya-v1-';
+  const ALPHA = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const params = new URLSearchParams(location.search);
+  // Для локального тестирования: ?host=localhost&port=9000
+  const PEER_OPTS = {
+    debug: 1,
+    config: { iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:global.stun.twilio.com:3478' }
+    ]}
+  };
+  if (params.get('host')) {
+    PEER_OPTS.host = params.get('host');
+    PEER_OPTS.port = +params.get('port') || 9000;
+    PEER_OPTS.path = params.get('path') || '/';
+    PEER_OPTS.secure = params.get('secure') === '1';
+  }
+
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('rn_' + k); return v === null ? d : v; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem('rn_' + k, v); } catch {} }
+  };
+  const show = (id, on = true) => $(id).classList.toggle('hidden', !on);
+  const setStatus = (dot, txt, cls, text) => { $(dot).className = 'dot ' + (cls || ''); $(txt).textContent = text; };
+  const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), b => ALPHA[b % ALPHA.length]).join('');
+
+  // ---------- Wake lock (не даёт экрану гаснуть, где поддерживается) ----------
+  let wakeLock = null, wantWake = false;
+  async function keepAwake() {
+    wantWake = true;
+    try { if ('wakeLock' in navigator) { wakeLock = await navigator.wakeLock.request('screen'); } } catch {}
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (wantWake && document.visibilityState === 'visible') keepAwake();
+  });
+
+  // ---------- Уровень звука ----------
+  function makeLevelMeter(ctx, stream) {
+    const src = ctx.createMediaStreamSource(stream);
+    const an = ctx.createAnalyser();
+    an.fftSize = 2048;
+    src.connect(an);
+    const buf = new Float32Array(an.fftSize);
+    return () => {
+      an.getFloatTimeDomainData(buf);
+      let s = 0; for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i];
+      const rms = Math.sqrt(s / buf.length);
+      const db = 20 * Math.log10(rms + 1e-9);         // ~ -90 (тишина) … 0 (максимум)
+      return Math.max(0, Math.min(100, Math.round((db + 70) / 60 * 100)));
+    };
+  }
+
+  // ---------- Навигация ----------
+  $('pickBaby').onclick = () => { show('home', false); show('baby'); };
+  $('pickParent').onclick = () => {
+    show('home', false); show('parent');
+    const fromHash = (location.hash || '').replace('#', '').toUpperCase();
+    $('codeIn').value = /^[A-Z0-9]{6}$/.test(fromHash) ? fromHash : store.get('code', '');
+  };
+  $('optVideo').onchange = () => show('optBack', true);
+
+  // =====================================================================
+  //                              ДЕТСКАЯ
+  // =====================================================================
+  const B = { peer: null, stream: null, ctx: null, level: () => 0, conns: new Map(), calls: new Map(),
+              code: null, timer: null, facing: 'user', stopped: false };
+
+  async function getMedia(video, facing) {
+    return navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      video: video ? { facingMode: facing, width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 15, max: 20 } } : false
+    });
+  }
+
+  $('babyStart').onclick = async () => {
+    $('babyErr').textContent = '';
+    if (!window.Peer) { $('babyErr').textContent = 'Не загрузилась библиотека PeerJS — проверьте интернет и обновите страницу.'; return; }
+    if (!navigator.mediaDevices || !window.isSecureContext) {
+      $('babyErr').textContent = 'Камера доступна только по https://. Откройте страницу по защищённой ссылке.'; return;
+    }
+    const wantVideo = $('optVideo').checked;
+    B.facing = $('optBack').checked ? 'environment' : 'user';
+    $('babyStart').disabled = true;
+    try {
+      B.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      await B.ctx.resume();
+      B.stream = await getMedia(wantVideo, B.facing);
+    } catch (e) {
+      $('babyStart').disabled = false;
+      $('babyErr').textContent = 'Нет доступа к камере/микрофону: ' + (e.message || e.name) + '. Разрешите доступ в настройках Safari для этого сайта.';
+      return;
+    }
+    B.level = makeLevelMeter(B.ctx, B.stream);
+    if (wantVideo) { $('babyPreview').srcObject = B.stream; show('babyPreview'); show('flipBtn'); }
+    show('babySetup', false); show('babyRun');
+    keepAwake();
+    B.stopped = false;
+    B.code = store.get('babycode', '') || newCode();
+    startBabyPeer();
+
+    let t = 0;
+    B.timer = setInterval(() => {
+      const v = B.level();
+      $('babyLvl').style.width = v + '%'; $('babyLvlTxt').textContent = v; $('nightLvl').textContent = v;
+      const msg = { t: 'lvl', v, video: !!B.stream.getVideoTracks().length };
+      for (const c of B.conns.values()) { if (c.open) { try { c.send(msg); } catch {} } }
+      if (++t % 20 === 0 && B.ctx.state !== 'running') B.ctx.resume().catch(() => {});
+    }, 250);
+  };
+
+  function startBabyPeer() {
+    if (B.peer) { try { B.peer.destroy(); } catch {} }
+    $('babyCode').textContent = B.code;
+    setStatus('babyDot', 'babyStatus', 'warn', 'Подключение к сервису…');
+    const peer = new Peer(PREFIX + B.code, PEER_OPTS);
+    B.peer = peer;
+    peer.on('open', () => { store.set('babycode', B.code); updateBabyStatus(); });
+    peer.on('connection', conn => {
+      conn.on('open', () => {
+        B.conns.set(conn.peer, conn);
+        callParent(conn.peer);
+        updateBabyStatus();
+      });
+      conn.on('data', d => { if (d && d.t === 'recall') callParent(conn.peer); });
+      conn.on('close', () => { if (B.conns.get(conn.peer) === conn) B.conns.delete(conn.peer); dropCall(conn.peer); updateBabyStatus(); });
+      conn.on('error', () => {});
+    });
+    peer.on('disconnected', () => {
+      if (B.stopped || peer !== B.peer) return;
+      setStatus('babyDot', 'babyStatus', 'warn', 'Переподключение…');
+      setTimeout(() => { if (!peer.destroyed && peer.disconnected) peer.reconnect(); }, 2000);
+    });
+    peer.on('error', err => {
+      if (B.stopped || peer !== B.peer) return;
+      if (err.type === 'unavailable-id') { B.code = newCode(); store.set('babycode', ''); return startBabyPeer(); }
+      if (err.type === 'peer-unavailable') return;
+      setStatus('babyDot', 'babyStatus', 'bad', 'Ошибка: ' + err.type + '. Повтор…');
+      setTimeout(() => { if (!B.stopped && peer === B.peer) startBabyPeer(); }, 5000);
+    });
+  }
+
+  function callParent(id) {
+    dropCall(id);
+    const call = B.peer.call(id, B.stream);
+    if (!call) return;
+    B.calls.set(id, call);
+    call.on('close', () => { if (B.calls.get(id) === call) B.calls.delete(id); });
+    call.on('error', () => {});
+  }
+  function dropCall(id) { const c = B.calls.get(id); if (c) { B.calls.delete(id); try { c.close(); } catch {} } }
+
+  function updateBabyStatus() {
+    if (!B.peer || !B.peer.open) return;
+    const n = B.conns.size;
+    if (n) setStatus('babyDot', 'babyStatus', 'ok', n === 1 ? 'Родитель подключён' : `Подключено родителей: ${n}`);
+    else setStatus('babyDot', 'babyStatus', 'warn', 'Ждём телефон родителя…');
+  }
+
+  $('flipBtn').onclick = async () => {
+    B.facing = B.facing === 'user' ? 'environment' : 'user';
+    try {
+      const ns = await navigator.mediaDevices.getUserMedia({ video: { facingMode: B.facing, width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 15 } } });
+      const nt = ns.getVideoTracks()[0];
+      const old = B.stream.getVideoTracks()[0];
+      for (const call of B.calls.values()) {
+        const s = call.peerConnection && call.peerConnection.getSenders().find(x => x.track && x.track.kind === 'video');
+        if (s) await s.replaceTrack(nt);
+      }
+      if (old) { B.stream.removeTrack(old); old.stop(); }
+      B.stream.addTrack(nt);
+      $('babyPreview').srcObject = B.stream;
+    } catch (e) { $('babyErr').textContent = 'Не удалось переключить камеру'; }
+  };
+
+  $('nightBtn').onclick = () => { show('night'); try { document.documentElement.requestFullscreen?.(); } catch {} };
+  $('night').onclick = () => { show('night', false); try { document.exitFullscreen?.(); } catch {} };
+
+  $('babyStop').onclick = () => {
+    B.stopped = true; wantWake = false;
+    clearInterval(B.timer);
+    try { B.peer && B.peer.destroy(); } catch {}
+    B.stream && B.stream.getTracks().forEach(t => t.stop());
+    try { B.ctx && B.ctx.close(); } catch {}
+    try { wakeLock && wakeLock.release(); } catch {}
+    B.conns.clear(); B.calls.clear();
+    location.reload();
+  };
+
+  // =====================================================================
+  //                              РОДИТЕЛЬ
+  // =====================================================================
+  const P = { peer: null, conn: null, call: null, code: null, ctx: null, lastMsg: 0, connected: false,
+              over: 0, alarmOn: false, quietUntil: 0, hist: [], beepTimer: null, stopped: false, retryAt: 0 };
+
+  const thr = () => +$('thr').value;
+  const dur = () => +$('dur').value;
+  $('thr').value = store.get('thr', 45); $('dur').value = store.get('dur', 3);
+  const syncSliders = () => {
+    $('thrTxt').textContent = thr(); $('durTxt').textContent = dur() + ' с';
+    $('parThrMark').style.left = thr() + '%';
+    store.set('thr', thr()); store.set('dur', dur());
+  };
+  $('thr').oninput = syncSliders; $('dur').oninput = syncSliders; syncSliders();
+  $('listen').onchange = () => { $('remote').muted = !$('listen').checked; if ($('listen').checked) tryPlay(); };
+
+  $('parentStart').onclick = async () => {
+    $('parentErr').textContent = '';
+    const code = $('codeIn').value.trim().toUpperCase();
+    if (!/^[A-Z0-9]{6}$/.test(code)) { $('parentErr').textContent = 'Код — 6 символов с экрана iPad'; return; }
+    if (!window.Peer) { $('parentErr').textContent = 'Не загрузилась библиотека PeerJS — проверьте интернет.'; return; }
+    P.code = code; store.set('code', code);
+    // Разблокировать звук на iOS — это должно случиться внутри нажатия
+    try {
+      P.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      await P.ctx.resume();
+      const o = P.ctx.createOscillator(), g = P.ctx.createGain(); g.gain.value = 0;
+      o.connect(g).connect(P.ctx.destination); o.start(); o.stop(P.ctx.currentTime + 0.05);
+    } catch {}
+    const v = $('remote'); v.muted = false; v.play().catch(() => {});
+    show('parentSetup', false); show('parentRun');
+    $('parCodeLbl').textContent = 'код ' + code;
+    keepAwake();
+    P.stopped = false;
+    startParentPeer();
+    setInterval(parentWatchdog, 1000);
+    requestAnimationFrame(drawHist);
+  };
+
+  function startParentPeer() {
+    setStatus('parDot', 'parStatus', 'warn', 'Подключение к сервису…');
+    const peer = new Peer(PEER_OPTS);
+    P.peer = peer;
+    peer.on('open', () => connectToBaby());
+    peer.on('call', call => {
+      if (P.call && P.call !== call) { try { P.call.close(); } catch {} }
+      P.call = call;
+      call.answer();
+      call.on('stream', s => {
+        const v = $('remote');
+        if (v.srcObject !== s) v.srcObject = s;
+        const hasVideo = s.getVideoTracks().length > 0;
+        show('remote', hasVideo); show('audioOnly', !hasVideo);
+        v.muted = !$('listen').checked;
+        tryPlay();
+      });
+      call.on('error', () => {});
+    });
+    peer.on('disconnected', () => {
+      if (P.stopped || peer !== P.peer) return;
+      setTimeout(() => { if (!peer.destroyed && peer.disconnected) peer.reconnect(); }, 2000);
+    });
+    peer.on('error', err => {
+      if (P.stopped || peer !== P.peer) return;
+      if (err.type === 'peer-unavailable') {
+        setStatus('parDot', 'parStatus', 'bad', 'iPad не найден. Проверьте код и что «Детская» запущена.');
+        P.retryAt = Date.now() + 4000;
+        return;
+      }
+      setStatus('parDot', 'parStatus', 'bad', 'Ошибка: ' + err.type + '. Повтор…');
+      if (['network', 'server-error', 'socket-error', 'socket-closed'].includes(err.type)) {
+        setTimeout(() => { if (!P.stopped && peer === P.peer) { try { peer.destroy(); } catch {} startParentPeer(); } }, 4000);
+      }
+    });
+  }
+
+  function connectToBaby() {
+    if (!P.peer || !P.peer.open) return;
+    if (P.conn) { try { P.conn.close(); } catch {} }
+    setStatus('parDot', 'parStatus', 'warn', 'Ищем iPad…');
+    const conn = P.peer.connect(PREFIX + P.code, { reliable: true });
+    P.conn = conn;
+    P.retryAt = Date.now() + 12000;
+    conn.on('open', () => { P.lastMsg = Date.now(); });
+    conn.on('data', d => {
+      if (!d || d.t !== 'lvl') return;
+      P.lastMsg = Date.now();
+      if (!P.connected) { P.connected = true; if (P.alarmOn && P.alarmKind === 'lost') stopAlarm(); }
+      setStatus('parDot', 'parStatus', 'ok', 'На связи');
+      onLevel(d.v);
+      if (P.call == null || (P.call && !P.call.open && Date.now() - (P.callAsk || 0) > 8000)) {
+        P.callAsk = Date.now(); try { conn.send({ t: 'recall' }); } catch {}
+      }
+    });
+    conn.on('close', () => { if (conn === P.conn) { P.retryAt = Date.now() + 2000; } });
+    conn.on('error', () => {});
+  }
+
+  function parentWatchdog() {
+    if (P.stopped) return;
+    const now = Date.now();
+    if (P.connected && now - P.lastMsg > 10000) {
+      P.connected = false;
+      setStatus('parDot', 'parStatus', 'bad', 'Связь с iPad потеряна. Переподключаемся…');
+      startAlarm('lost');
+      P.retryAt = now;
+    }
+    if (!P.connected && P.retryAt && now >= P.retryAt) {
+      P.retryAt = now + 12000;
+      if (P.peer && P.peer.open) connectToBaby();
+      else if (P.peer && P.peer.disconnected && !P.peer.destroyed) P.peer.reconnect();
+    }
+    if (P.ctx && P.ctx.state !== 'running') P.ctx.resume().catch(() => {});
+  }
+
+  function onLevel(v) {
+    $('parLvl').style.width = v + '%'; $('parLvlTxt').textContent = v;
+    P.hist.push(v); if (P.hist.length > 480) P.hist.shift();   // 4 замера/с × 120 с
+    if (v >= thr()) P.over += 0.25; else P.over = Math.max(0, P.over - 0.5);
+    if (P.over >= dur() && !P.alarmOn && Date.now() > P.quietUntil) startAlarm('noise');
+  }
+
+  function tryPlay() {
+    const v = $('remote');
+    v.play().then(() => show('unmuteBtn', false)).catch(() => show('unmuteBtn', true));
+  }
+  $('unmuteBtn').onclick = () => { const v = $('remote'); v.muted = false; $('listen').checked = true; tryPlay(); P.ctx && P.ctx.resume(); };
+
+  // ---------- Тревога ----------
+  function beep() {
+    if (!P.ctx) return;
+    const t0 = P.ctx.currentTime;
+    [0, 0.25, 0.5].forEach((dt, i) => {
+      const o = P.ctx.createOscillator(), g = P.ctx.createGain();
+      o.type = 'square'; o.frequency.value = i === 1 ? 1320 : 880;
+      g.gain.setValueAtTime(0.0001, t0 + dt);
+      g.gain.exponentialRampToValueAtTime(0.35, t0 + dt + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.2);
+      o.connect(g).connect(P.ctx.destination); o.start(t0 + dt); o.stop(t0 + dt + 0.22);
+    });
+    try { navigator.vibrate && navigator.vibrate([300, 150, 300]); } catch {}
+  }
+  function startAlarm(kind) {
+    P.alarmOn = true; P.alarmKind = kind;
+    $('alarmTitle').textContent = kind === 'lost' ? 'Нет связи с iPad!' : 'Ребёнок шумит!';
+    $('alarmText').textContent = kind === 'lost'
+      ? 'Проверьте iPad: экран, зарядку, Wi-Fi'
+      : 'Звук в детской выше порога ' + dur() + ' с';
+    show('alarm');
+    beep(); clearInterval(P.beepTimer); P.beepTimer = setInterval(beep, 1500);
+  }
+  function stopAlarm() {
+    P.alarmOn = false; clearInterval(P.beepTimer); show('alarm', false); P.over = 0;
+  }
+  $('ackBtn').onclick = () => { stopAlarm(); P.quietUntil = Date.now() + 20000; P.ctx && P.ctx.resume(); };
+  $('testAlarm').onclick = () => { P.ctx && P.ctx.resume(); startAlarm('noise'); $('alarmTitle').textContent = 'Проверка сигнала'; };
+
+  // ---------- График ----------
+  function drawHist() {
+    const c = $('hist'), g = c.getContext('2d');
+    const w = c.width = c.clientWidth * devicePixelRatio, h = c.height = 70 * devicePixelRatio;
+    g.clearRect(0, 0, w, h);
+    const n = 480, bw = w / n;
+    for (let i = 0; i < P.hist.length; i++) {
+      const v = P.hist[i], x = w - (P.hist.length - i) * bw;
+      g.fillStyle = v >= thr() ? '#ff5d5d' : '#4cc38a';
+      g.fillRect(x, h - v / 100 * h, Math.max(1, bw), v / 100 * h);
+    }
+    g.fillStyle = 'rgba(255,255,255,.7)'; g.fillRect(0, h - thr() / 100 * h, w, 1 * devicePixelRatio);
+    if (!P.stopped) requestAnimationFrame(drawHist);
+  }
+
+  $('parentStop').onclick = () => {
+    P.stopped = true; wantWake = false; stopAlarm();
+    try { P.peer && P.peer.destroy(); } catch {}
+    try { wakeLock && wakeLock.release(); } catch {}
+    location.reload();
+  };
+
+  // Ссылка вида …/#ABC123 сразу открывает режим родителя с кодом
+  if (/^#[A-Za-z0-9]{6}$/.test(location.hash)) $('pickParent').click();
+})();
+</script>
+</body>
+</html>
